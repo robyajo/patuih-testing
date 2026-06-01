@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patuih Chat</title>
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:#0f1117; color:#e1e4e8; height:100vh; display:flex; flex-direction:column;
+}
+
+/* ===== LOBBY SCREEN ===== */
+.lobby {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(ellipse at center,#161b22 0%,#0f1117 70%);
+}
+.lobby-card {
+  background:#161b22; border:1px solid #21262d; border-radius:12px;
+  padding:32px; width:400px; max-width:90vw;
+}
+.lobby-card h1 { font-size:20px; font-weight:600; color:#58a6ff; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.lobby-card p { font-size:12px; color:#8b949e; margin-bottom:20px; }
+.lobby-card .field { margin-bottom:12px; }
+.lobby-card .field label { font-size:11px; color:#8b949e; display:block; margin-bottom:3px; }
+.lobby-card .field input {
+  width:100%; padding:8px 10px; background:#0d1117; border:1px solid #21262d;
+  border-radius:6px; color:#e1e4e8; font-size:13px;
+}
+.lobby-card .field input:focus { border-color:#58a6ff; outline:none; }
+.lobby-card .field .hint { font-size:10px; color:#484f58; margin-top:2px; }
+.lobby-buttons { display:flex; gap:8px; margin-top:16px; }
+.lobby-buttons button {
+  flex:1; padding:10px; border:none; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer;
+}
+.btn-join { background:#1f6feb; color:#fff; }
+.btn-join:hover { background:#388bfd; }
+.btn-create { background:#238636; color:#fff; }
+.btn-create:hover { background:#2ea043; }
+.lobby-buttons button:disabled { opacity:0.4; cursor:default; }
+.lobby-error { font-size:11px; color:#f85149; margin-top:8px; display:none; }
+.lobby-success { font-size:11px; color:#7ee787; margin-top:8px; display:none; }
+
+/* ===== CHAT ===== */
+.chat-layout { flex:1; display:none; flex-direction:column; }
+.header {
+  background:#161b22; border-bottom:1px solid #21262d; padding:8px 16px;
+  display:flex; align-items:center; gap:12px; flex-shrink:0;
+}
+.header .room-info { display:flex; align-items:center; gap:6px; margin-right:auto; }
+.header .room-info .name { font-size:13px; font-weight:500; color:#e1e4e8; }
+.header .room-info .badge { font-size:9px; padding:2px 6px; border-radius:3px; background:#21262d; color:#8b949e; }
+.header .room-info .sep { color:#30363d; }
+.header .btn-leave { padding:4px 10px; font-size:10px; border:1px solid #30363d; border-radius:4px; background:transparent; color:#8b949e; cursor:pointer; }
+.header .btn-leave:hover { border-color:#f85149; color:#f85149; }
+.conn-status { display:flex; align-items:center; gap:4px; font-size:10px; color:#8b949e; }
+.dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+.dot.on { background:#7ee787; }
+.dot.off { background:#f85149; }
+
+.container { display:flex; flex:1; overflow:hidden; }
+.sidebar { width:240px; background:#161b22; border-right:1px solid #21262d; display:flex; flex-direction:column; flex-shrink:0; }
+.sidebar-panel { padding:10px 12px; border-bottom:1px solid #21262d; }
+.sidebar-panel h3 { font-size:10px; text-transform:uppercase; color:#8b949e; margin-bottom:4px; }
+.sidebar-panel .info { font-size:10px; color:#8b949e; }
+.webhook-box { background:#0d1117; border:1px solid #21262d; border-radius:3px; padding:5px 7px; margin-top:4px; display:flex; align-items:center; gap:4px; }
+.webhook-box code { font-size:9px; color:#7ee787; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.webhook-box button { padding:2px 5px; font-size:8px; background:#21262d; color:#8b949e; border:none; border-radius:2px; cursor:pointer; }
+.endpoint-list { flex:1; overflow-y:auto; padding:6px 12px; }
+.endpoint-item { padding:5px 7px; margin-bottom:3px; border-radius:3px; background:#0d1117; border:1px solid #21262d; font-size:10px; }
+.endpoint-item .name { color:#e1e4e8; }
+.endpoint-item .events { display:flex; gap:2px; margin-top:2px; flex-wrap:wrap; }
+.endpoint-item .ev-badge { font-size:8px; padding:1px 3px; border-radius:2px; background:#1f6feb33; color:#58a6ff; }
+
+.messages { flex:1; overflow-y:auto; padding:10px 14px; display:flex; flex-direction:column; gap:5px; }
+.msg { max-width:75%; padding:6px 9px; border-radius:7px; font-size:12px; line-height:1.35; animation:fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:translateY(0)} }
+.msg.sent { align-self:flex-end; background:#1f6feb; color:#fff; border-bottom-right-radius:2px; }
+.msg.received { align-self:flex-start; background:#21262d; color:#e1e4e8; border-bottom-left-radius:2px; }
+.msg.system { align-self:center; background:transparent; color:#8b949e; font-size:10px; max-width:100%; text-align:center; }
+.msg .meta { display:flex; align-items:center; gap:4px; margin-bottom:2px; }
+.msg .event-tag { font-size:8px; padding:1px 3px; border-radius:2px; background:rgba(255,255,255,0.12); }
+.msg .sender { font-size:9px; opacity:0.7; }
+.msg .time { font-size:8px; opacity:0.5; }
+.msg .payload { margin-top:2px; padding:4px 5px; border-radius:3px; background:rgba(0,0,0,0.2); font-size:9px; font-family:monospace; white-space:pre-wrap; display:none; }
+.msg .payload.show { display:block; }
+.msg .toggle-payload { font-size:8px; opacity:0.4; cursor:pointer; }
+.msg .toggle-payload:hover { opacity:0.8; }
+
+.input-area { padding:8px 14px; border-top:1px solid #21262d; background:#161b22; display:flex; gap:5px; align-items:center; flex-shrink:0; }
+.input-area input[type="text"] { flex:1; padding:6px 9px; background:#0d1117; border:1px solid #21262d; border-radius:4px; color:#e1e4e8; font-size:12px; }
+.input-area input:focus { border-color:#58a6ff; outline:none; }
+.input-area select { padding:6px 7px; background:#0d1117; border:1px solid #21262d; border-radius:4px; color:#e1e4e8; font-size:10px; }
+.input-area button { padding:6px 12px; background:#238636; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:500; white-space:nowrap; }
+.input-area button:hover { background:#2ea043; }
+.input-area button:disabled { opacity:0.5; }
+.input-area .warn { font-size:9px; color:#f85149; display:none; white-space:nowrap; }
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#30363d; border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- ===== LOBBY ===== -->
+<div class="lobby" id="lobby">
+  <div class="lobby-card">
+    <h1>💬 Patuih Chat</h1>
+    <p>Webhook Gateway Testing — real-time chat via Patuih</p>
+
+    <div class="field">
+      <label>Your Name</label>
+      <input id="lobbyName" value="User" placeholder="Display name">
+    </div>
+    <div class="field">
+      <label>Room / Channel</label>
+      <input id="lobbyRoom" value="general" placeholder="general">
+      <div class="hint">Masuk ke room yang sudah ada atau buat room baru</div>
+    </div>
+    <div class="field">
+      <label>API Key <span style="color:#f85149">*</span> <span style="color:#8b949e;font-weight:400">(hanya untuk Create Room)</span></label>
+      <input id="lobbyKey" placeholder="pt_live_...">
+      <div class="hint">Generate dari Patuih → API Keys. Tidak wajib untuk Join.</div>
+    </div>
+
+    <div class="lobby-buttons">
+      <button class="btn-join" id="btnJoin" onclick="joinRoom()">🔊 Join Room</button>
+      <button class="btn-create" id="btnCreate" onclick="createRoom()">✨ Create Room</button>
+    </div>
+    <div id="lobbyError" class="lobby-error"></div>
+    <div id="lobbySuccess" class="lobby-success"></div>
+  </div>
+</div>
+
+<!-- ===== CHAT ===== -->
+<div class="chat-layout" id="chatLayout">
+  <div class="header">
+    <div class="room-info">
+      <span class="name">#<span id="roomLabel">general</span></span>
+      <span class="sep">·</span>
+      <span id="userLabel" style="font-size:12px;color:#8b949e">User</span>
+      <span class="badge" id="msgCount">0</span>
+    </div>
+    <div class="conn-status">
+      <span class="dot" id="wsDot">&#8203;</span>
+      <span id="wsStatus">Connected</span>
+    </div>
+    <button class="btn-leave" onclick="leaveRoom()">✕ Leave</button>
+  </div>
+
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-panel">
+        <h3>Webhook URL</h3>
+        <div class="webhook-box">
+          <code id="webhookUrl">http://localhost:3099/webhook</code>
+          <button onclick="copyWebhookUrl()">Copy</button>
+        </div>
+        <div class="info">Daftarkan di Patuih → Endpoints</div>
+      </div>
+      <div class="sidebar-panel" style="border-bottom:none"><h3>Endpoints</h3></div>
+      <div class="endpoint-list" id="endpointList">
+        <div style="color:#484f58;font-size:10px;text-align:center;padding:14px">
+          Endpoint yang subscribe event akan tampil
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column">
+      <div class="messages" id="messages">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#484f58;text-align:center;padding:30px">
+          <div style="font-size:28px;margin-bottom:6px;opacity:0.3">💬</div>
+          <p style="font-size:11px;max-width:300px;line-height:1.5">Menunggu pesan...<br>Kirim dari browser lain atau via API.</p>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <select id="eventSelect">
+          <option value="chat.message">chat.message</option>
+          <option value="chat.join">chat.join</option>
+          <option value="order.created">order.created</option>
+          <option value="webhook.test">webhook.test</option>
+        </select>
+        <input type="text" id="msgInput" placeholder="Ketik pesan..." autocomplete="off"
+          onkeydown="if(event.key==='Enter') sendMessage()">
+        <button id="sendBtn" onclick="sendMessage()">Send</button>
+        <span id="sendWarn" class="warn">Isi API Key</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const serverUrl = window.location.origin.startsWith("file") ? "http://localhost:3099" : window.location.origin
+const socket = io(serverUrl)
+window.API_BASE = serverUrl
+
+// ===== STATE =====
+let messages = []
+let showPayload = false
+let currentRoom = ""
+let currentUser = ""
+let currentKey = ""
+
+// ===== DOM =====
+const lobby = document.getElementById("lobby")
+const chatLayout = document.getElementById("chatLayout")
+const roomLabel = document.getElementById("roomLabel")
+const userLabel = document.getElementById("userLabel")
+const msgCountEl = document.getElementById("msgCount")
+
+// ===== SOCKET =====
+socket.on("connect", () => { document.getElementById("wsDot").className = "dot on"; document.getElementById("wsStatus").textContent = "Connected" })
+socket.on("disconnect", () => { document.getElementById("wsDot").className = "dot off"; document.getElementById("wsStatus").textContent = "Disconnected" })
+socket.on("webhook", (event) => { addReceivedMessage(event) })
+socket.on("chat-message", (msg) => {
+  if (messages.some(m => m.id === msg.id)) return
+  const text = msg.data?.text || msg.data?.message || JSON.stringify(msg.data || {})
+  messages.push({ id: msg.id, eventType: msg.event, text, sender: msg.sender || "unknown", rawData: msg, type: "received", timestamp: msg.timestamp || new Date().toISOString(), status: "delivered" })
+  renderMessages()
+})
+socket.on("cleared", () => { messages = []; renderMessages(); msgCountEl.textContent = "0" })
+
+// ===== LOBBY =====
+function joinRoom() {
+  const name = document.getElementById("lobbyName").value.trim() || "User"
+  const room = document.getElementById("lobbyRoom").value.trim() || "general"
+  currentUser = name
+  currentRoom = room
+  currentKey = document.getElementById("lobbyKey").value.trim()
+  startChat(room, name, "join")
+}
+
+function createRoom() {
+  const name = document.getElementById("lobbyName").value.trim() || "User"
+  const room = document.getElementById("lobbyRoom").value.trim() || "general"
+  const key = document.getElementById("lobbyKey").value.trim()
+
+  if (!key) { showLobbyError("API Key wajib diisi untuk Create Room"); return }
+
+  currentUser = name
+  currentRoom = room
+  currentKey = key
+
+  // Kirim event join ke Patuih via server
+  const patuihUrl = "http://localhost:8000"
+  fetch(API_BASE + "/api/send-event", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ patuihUrl, apiKey: key, channel: room, event: "chat.join", data: { room, sender: name }, sender: name }),
+  }).catch(() => {})
+
+  startChat(room, name, "create")
+}
+
+function startChat(room, name, action) {
+  roomLabel.textContent = room
+  userLabel.textContent = name
+  lobby.style.display = "none"
+  chatLayout.style.display = "flex"
+  document.getElementById("lobbyError").style.display = "none"
+  document.getElementById("lobbySuccess").style.display = "none"
+
+  messages = []
+  messages.push({ id: "sys_start", eventType: "system", text: `${name} ${action === "create" ? "membuat" : "bergabung ke"} room #${room}`, sender: "", rawData: null, type: "system", timestamp: new Date().toISOString() })
+  renderMessages()
+  document.getElementById("msgInput").focus()
+  loadHistory()
+  loadEndpoints()
+}
+
+function leaveRoom() {
+  chatLayout.style.display = "none"
+  lobby.style.display = "flex"
+  messages = []
+  // Reset form lobby
+  document.getElementById("lobbyRoom").value = currentRoom
+  document.getElementById("lobbyName").value = currentUser
+  document.getElementById("lobbyKey").value = currentKey
+}
+
+function showLobbyError(msg) {
+  const el = document.getElementById("lobbyError")
+  el.textContent = msg; el.style.display = "block"
+  setTimeout(() => el.style.display = "none", 4000)
+}
+
+// ===== SEND =====
+async function sendMessage() {
+  const text = document.getElementById("msgInput").value.trim()
+  const eventType = document.getElementById("eventSelect").value
+  if (!text) return
+  if (!currentKey) {
+    const warn = document.getElementById("sendWarn")
+    warn.style.display = "inline"; setTimeout(() => warn.style.display = "none", 3000)
+    return
+  }
+  document.getElementById("sendWarn").style.display = "none"
+
+  const msgId = "msg_" + Date.now().toString(36)
+  const now = new Date().toISOString()
+  const payload = { room: currentRoom, text, sender: currentUser, timestamp: now }
+
+  messages.push({ id: msgId, eventType, text, sender: currentUser, rawData: null, type: "sent", timestamp: now, status: "sending" })
+  renderMessages()
+  document.getElementById("msgInput").value = ""
+  document.getElementById("sendBtn").disabled = true
+
+  try {
+    const res = await fetch(API_BASE + "/api/send-event", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patuihUrl: "http://localhost:8000", apiKey: currentKey, channel: currentRoom, event: eventType, data: payload, sender: currentUser }),
+    })
+    const json = await res.json()
+    if (!json.sent) throw new Error(json.error || "Failed")
+  } catch (err) {
+    const m = messages.find(m => m.id === msgId)
+    if (m) m.status = "failed"
+    renderMessages()
+  } finally {
+    document.getElementById("sendBtn").disabled = false
+    document.getElementById("msgInput").focus()
+  }
+}
+
+// ===== RECEIVE =====
+function addReceivedMessage(event) {
+  const body = event.body || {}
+  const data = body.data || {}
+  const eventType = body.event || "unknown"
+  const text = data.text || data.message || JSON.stringify(data)
+  const sender = data.sender || body.sender || "unknown"
+  if (messages.some(m => m.id === event.id)) return
+  messages.push({ id: event.id, eventType, text, sender, rawData: body, type: "received", timestamp: event.receivedAt || new Date().toISOString(), status: "delivered" })
+  renderMessages()
+}
+
+// ===== RENDER =====
+function renderMessages() {
+  const el = document.getElementById("messages")
+  msgCountEl.textContent = messages.length
+  el.innerHTML = messages.map(msg => {
+    const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const icon = msg.status === "sending" ? "⏳" : msg.status === "failed" ? "❌" : ""
+    if (msg.type === "system") return `<div class="msg system">${esc(msg.text)}</div>`
+    const pHtml = msg.rawData ? `<div class="payload ${showPayload ? 'show' : ''}">${esc(JSON.stringify(msg.rawData, null, 2))}</div>` : ""
+    const tHtml = msg.rawData ? `<span class="toggle-payload" onclick="this.nextElementSibling.classList.toggle('show')">JSON</span>` : ""
+    return `<div class="msg ${msg.type === 'sent' ? 'sent' : 'received'}">
+      <div class="meta"><span class="event-tag">${esc(msg.eventType)}</span><span class="sender">${esc(msg.sender)}</span><span class="time">${time}</span><span>${icon}</span></div>
+      <div>${esc(msg.text)}</div>${tHtml}${pHtml}
+    </div>`
+  }).join("")
+  el.scrollTop = el.scrollHeight
+}
+
+// ===== HELPERS =====
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML }
+function copyWebhookUrl() { const url = document.getElementById("webhookUrl").textContent; navigator.clipboard.writeText(url).then(() => { event.target.textContent = "OK"; setTimeout(() => event.target.textContent = "Copy", 1500) }) }
+
+async function loadHistory() {
+  try { const res = await fetch(API_BASE + "/api/webhooks"); const logs = await res.json(); logs.forEach(ev => addReceivedMessage(ev)) } catch {}
+}
+async function loadEndpoints() {
+  try {
+    const res = await fetch(API_BASE + "/api/endpoints")
+    const data = await res.json()
+    document.getElementById("endpointList").innerHTML = (data || []).map(ep =>
+      `<div class="endpoint-item"><div class="name">${esc(ep.name)}</div><div class="events">${(ep.events||[]).map(e => `<span class="ev-badge">${e}</span>`).join('')}</div></div>`
+    ).join("") || '<div style="color:#484f58;font-size:10px;text-align:center;padding:14px">Belum ada endpoint</div>'
+  } catch {}
+}
+
+// Init webhook URL
+document.getElementById("webhookUrl").textContent = window.location.origin + "/webhook"
+</script>
+</body>
+</html>
