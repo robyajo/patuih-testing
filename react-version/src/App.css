@@ -87,6 +87,38 @@ main { flex: 1; display: flex; flex-direction: column; }
 .composer button:hover { background: #2ea043; }
 .composer button:disabled { opacity: 0.4; cursor: default; }
 .composer .warn { font-size: 11px; color: #f85149; white-space: nowrap; }
+.composer .key-inline-input { padding: 10px 14px; background: #0d1117; border: 1px solid #f0883e; border-radius: 8px; color: #e1e4e8; font-size: 13px; outline: none; width: 240px; transition: border 0.15s; flex: 1; }
+.composer .key-inline-input:focus { border-color: #f0883e; }
+
+/* Lobby additions */
+.back-btn { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 12px; padding: 0; margin-bottom: 4px; }
+.back-btn:hover { color: #e1e4e8; }
+.copy-box { display: flex; gap: 6px; }
+.copy-box input { flex: 1; padding: 8px 10px; background: #0d1117; border: 1px solid #21262d; border-radius: 6px; color: #e1e4e8; font-size: 13px; outline: none; }
+.copy-box input.mono { font-family: monospace; font-size: 12px; }
+.copy-box input:focus { border-color: #58a6ff; }
+.copy-box button { padding: 8px 12px; background: #21262d; color: #8b949e; border: 1px solid #30363d; border-radius: 6px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+.copy-box button:hover { background: #30363d; color: #e1e4e8; }
+.lobby-card .hint { font-size: 10px; color: #484f58; margin-top: 3px; display: block; }
+
+/* Header room ID */
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.room-id { font-size: 10px; color: #8b949e; cursor: pointer; padding: 3px 8px; border: 1px solid #21262d; border-radius: 4px; }
+.room-id:hover { border-color: #58a6ff; color: #58a6ff; }
+
+/* Sidebar key input */
+.key-input { width: 100%; padding: 6px 8px; background: #0d1117; border: 1px solid #f0883e; border-radius: 4px; color: #e1e4e8; font-size: 11px; outline: none; }
+.key-input:focus { border-color: #f0883e; }
+
+/* Error bar */
+.error-bar {
+  padding: 6px 14px; background: #290f0f; border-bottom: 1px solid #4a1b1b;
+  display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #f85149; flex-shrink: 0;
+}
+.error-bar button { background: none; border: none; color: #f85149; cursor: pointer; font-size: 14px; padding: 0 4px; }
+
+.user-label { font-size: 12px; color: #8b949e; }
+.key-badge { font-size: 13px; cursor: default; }
 
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
