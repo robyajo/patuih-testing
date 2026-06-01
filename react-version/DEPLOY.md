@@ -64,9 +64,11 @@ npm run build
 ### Opsi B: SCP Langsung
 
 ```bash
-# Dari lokal
+# Dari lokal — upload isi dist/ (bukan foldernya)
 scp -r dist/* user@vps:/var/www/chat.patuih.com/
-scp server/index.cjs package.json user@vps:/opt/chat-server/
+
+# Upload chat server
+scp -r server/ package.json user@vps:/opt/chat-server/
 ```
 
 ---
@@ -81,13 +83,15 @@ server {
     listen 80;
     server_name chat.patuih.com;
 
-    root /var/www/chat.patuih.com;
+    # Arahkan langsung ke folder dist/ hasil build
+    root /opt/patuih/patuih-testing/react-version/dist;
     index index.html;
 
     location / {
         try_files $uri $uri/ /index.html;
     }
 }
+```
 ```
 
 ### Chat Server (Reverse Proxy)
