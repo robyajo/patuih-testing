@@ -53,6 +53,9 @@ io.on("connection", (socket) => {
       // Broadcast to others that this user left
       io.to(roomId).emit("user-leave", { username, timestamp: new Date().toISOString() })
       
+      // Broadcast that this user stopped typing
+      io.to(roomId).emit("user-typing", { username, isTyping: false })
+      
       // Send updated user list to remaining users
       const sockets = await io.in(roomId).fetchSockets();
       const users = sockets.map(s => s.username).filter(Boolean);
