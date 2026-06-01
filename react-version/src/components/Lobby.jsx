@@ -192,19 +192,20 @@ export default function Lobby({ onEnter }) {
             <span className="text-[11px] text-slate-500 block leading-relaxed">{tab === "create" ? "Share this room ID with your friends." : "Enter the room ID shared with you."}</span>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lobby-key" className="text-slate-400 font-bold text-[10px] uppercase tracking-wider flex justify-between">
-              <span>API Key</span>
-              {tab === "join" && <span className="text-slate-500 lowercase font-normal italic">(optional, to send messages)</span>}
-            </Label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          {tab === "create" && (
+            <div className="space-y-2">
+              <Label htmlFor="lobby-key" className="text-slate-400 font-bold text-[10px] uppercase tracking-wider flex justify-between">
+                <span>API Key</span>
+              </Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+                <Input id="lobby-key" className="bg-slate-950/45 border-slate-800/80 pl-10 text-white placeholder-slate-500 focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500 rounded-xl h-11" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="pt_live_..." type="password" />
               </div>
-              <Input id="lobby-key" className="bg-slate-950/45 border-slate-800/80 pl-10 text-white placeholder-slate-500 focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500 rounded-xl h-11" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="pt_live_..." type="password" />
+              <span className="text-[11px] text-slate-500 block leading-relaxed">Generate this key in Patuih → API Keys.</span>
             </div>
-            <span className="text-[11px] text-slate-500 block leading-relaxed">{tab === "join" ? "Leave blank to join in read-only mode." : "Generate this key in Patuih → API Keys."}</span>
-          </div>
+          )}
 
           {error && (
             <Alert variant="destructive" className="bg-rose-500/10 border-rose-500/20 text-rose-400 rounded-xl mt-2 animate-pulse-glow">
