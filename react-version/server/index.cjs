@@ -16,12 +16,58 @@ const PATUIH_URL = process.env.PATUIH_URL || "http://localhost:8000"
 const rooms = {}
 
 io.on("connection", (socket) => {
-  socket.on("join-room", (roomId) => {
+  socket.on("join-room", async (data) => {
+    let roomId, username;
+    if (typeof data === "string") {
+      roomId = data;
+      username = "Anonymous";
+    } else if (data && typeof data === "object") {
+      roomId = data.roomId;
+      username = data.username;
+    }
+    
+    if (!roomId) return;
+    
     socket.join(roomId)
-    console.log(`[WS] Client joined room: ${roomId}`)
+    socket.roomId = roomId
+    socket.username = username
+    console.log(`[WS] ${username} joined room: ${roomId}`)
+    
+    // Broadcast to others in the room that this user has joined
+    socket.to(roomId).emit("user-join", { username, timestamp: new Date().toISOString() })
+    
+    // Send updated user list to everyone in the room
+    const sockets = await io.in(roomId).fetchSockets();
+    const users = sockets.map(s => s.username).filter(Boolean);
+    io.to(roomId).emit("room-users", { users })
   })
-  socket.on("leave-room", (roomId) => {
-    socket.leave(roomId)
+
+  const handleLeave = async () => {
+    const roomId = socket.roomId;
+    const username = socket.username;
+    if (roomId) {
+      console.log(`[WS] ${username} left room: ${roomId}`)
+      socket.leave(roomId)
+      socket.roomId = null
+      
+      // Broadcast to others that this user left
+      io.to(roomId).emit("user-leave", { username, timestamp: new Date().toISOString() })
+      
+      // Send updated user list to remaining users
+      const sockets = await io.in(roomId).fetchSockets();
+      const users = sockets.map(s => s.username).filter(Boolean);
+      io.to(roomId).emit("room-users", { users })
+    }
+  }
+
+  socket.on("leave-room", handleLeave)
+  socket.on("disconnect", handleLeave)
+
+  socket.on("typing", (data) => {
+    const { roomId, username, isTyping } = data
+    if (roomId && username) {
+      socket.to(roomId).emit("user-typing", { username, isTyping })
+    }
   })
 })
 
@@ -78,6 +124,7 @@ app.post("/api/rooms/:roomId/messages", async (req, res) => {
     })
     const json = await r.json().catch(() => ({}))
     if (r.ok) {
+      console.log(`[MSG] ${msg.sender} → #${roomId}: ${msg.text.slice(0, 80)}${msg.text.length > 80 ? '...' : ''}`)
       // Broadcast ke semua client di room via Socket.IO
       io.to(roomId).emit("chat-message", msg)
       res.json({ sent: true, data: json.data, id: msg.id })
