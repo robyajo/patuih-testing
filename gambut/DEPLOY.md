@@ -5,11 +5,11 @@
 ```
 VPS (Ubuntu 22.04)
 ├── Nginx (reverse proxy)
-│   ├── chat.patuih.com → Chat App (build static)
-│   └── api.chat.patuih.com → Chat Server (Node.js)
+│   ├── gambut.lapeh.web.id → Chat App (build static)
+│   └── gambut-api.lapeh.web.id → Chat Server (Node.js)
 │
 ├── Chat App (static files)
-│   └── /var/www/chat.patuih.com/
+│   └── /var/www/gambut.lapeh.web.id/
 │
 ├── Chat Server (Node.js + PM2)
 │   └── port 3099
@@ -26,7 +26,7 @@ VPS (Ubuntu 22.04)
 - Nginx terinstall
 - Node.js 20+ terinstall
 - PM2 terinstall (`npm install -g pm2`)
-- Domain sudah指向 IP VPS (chat.patuih.com, api.chat.patuih.com)
+- Domain sudah指向 IP VPS (gambut.lapeh.web.id, gambut-api.lapeh.web.id)
 - Patuih API sudah running
 
 ---
@@ -65,7 +65,7 @@ npm run build
 
 ```bash
 # Dari lokal — upload isi dist/ (bukan foldernya)
-scp -r dist/* user@vps:/var/www/chat.patuih.com/
+scp -r dist/* user@vps:/var/www/gambut.lapeh.web.id/
 
 # Upload chat server
 scp -r server/ package.json user@vps:/opt/chat-server/
@@ -78,10 +78,10 @@ scp -r server/ package.json user@vps:/opt/chat-server/
 ### Chat App (Static Files)
 
 ```nginx
-# /etc/nginx/sites-available/chat.patuih.com
+# /etc/nginx/sites-available/gambut.lapeh.web.id
 server {
     listen 80;
-    server_name chat.patuih.com;
+    server_name gambut.lapeh.web.id;
 
     # Arahkan langsung ke folder dist/ hasil build
     root /opt/patuih/patuih-testing/react-version/dist;
@@ -92,15 +92,16 @@ server {
     }
 }
 ```
-```
+
+````
 
 ### Chat Server (Reverse Proxy)
 
 ```nginx
-# /etc/nginx/sites-available/api.chat.patuih.com
+# /etc/nginx/sites-available/gambut-api.lapeh.web.id
 server {
     listen 80;
-    server_name api.chat.patuih.com;
+    server_name gambut-api.lapeh.web.id;
 
     location / {
         proxy_pass http://127.0.0.1:3099;
@@ -114,13 +115,13 @@ server {
         proxy_read_timeout 86400;
     }
 }
-```
+````
 
 ### Aktifkan Site
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/chat.patuih.com /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/api.chat.patuih.com /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/gambut.lapeh.web.id /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/gambut-api.lapeh.web.id /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -129,7 +130,7 @@ sudo systemctl reload nginx
 
 ```bash
 sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d chat.patuih.com -d api.chat.patuih.com
+sudo certbot --nginx -d gambut.lapeh.web.id -d gambut-api.lapeh.web.id
 ```
 
 ---
@@ -143,7 +144,7 @@ cd /opt/chat-server
 
 # Copy .env
 cat > .env << 'EOF'
-PATUIH_URL=https://api.patuih.com
+PATUIH_URL=https://patuih-services.lapeh.web.id
 SERVER_PORT=3099
 EOF
 ```
@@ -154,13 +155,13 @@ EOF
 # ecosystem.config.cjs
 module.exports = {
   apps: [{
-    name: "patuih-chat-server",
+    name: "gambut-api",
     script: "server/index.cjs",
-    cwd: "/opt/chat-server",
+    cwd: "/srv/www/node/gambut.lapeh.web.id/patuih-testing/gambut/server",
     env: {
       NODE_ENV: "production",
       PORT: 3099,
-      PATUIH_URL: "https://api.patuih.com"
+      PATUIH_URL: "https://patuih-services.lapeh.web.id"
     },
     instances: 1,
     exec_mode: "fork",
@@ -190,7 +191,7 @@ Update `.env` di folder `react-version` sebelum build:
 
 ```env
 VITE_PATUIH_URL=https://api.patuih.com
-VITE_CHAT_SERVER=https://api.chat.patuih.com
+VITE_CHAT_SERVER=https://gambut-api.lapeh.web.id
 ```
 
 Lalu build ulang:
@@ -204,14 +205,15 @@ npm run build
 
 ## 6. Verifikasi
 
-| Component | URL | Expected |
-|-----------|-----|----------|
-| Chat App | `https://chat.patuih.com` | Lobby (Join/Create Room) |
-| Chat Server | `https://api.chat.patuih.com/health` | `{"status":"ok"}` |
-| Socket.IO | `https://api.chat.patuih.com` | WebSocket connected |
+| Component   | URL                                      | Expected                 |
+| ----------- | ---------------------------------------- | ------------------------ |
+| Chat App    | `https://gambut.lapeh.web.id`            | Lobby (Join/Create Room) |
+| Chat Server | `https://gambut-api.lapeh.web.id/health` | `{"status":"ok"}`        |
+| Socket.IO   | `https://gambut-api.lapeh.web.id`        | WebSocket connected      |
 
 Test flow:
-1. Buka `https://chat.patuih.com`
+
+1. Buka `https://gambut.lapeh.web.id`
 2. Create Room (masukkan API Key dari Patuih)
 3. Copy Room ID
 4. Buka browser lain → Join Room
@@ -222,19 +224,23 @@ Test flow:
 ## Troubleshooting
 
 ### WebSocket tidak connect
+
 - Pastikan Nginx proxy WebSocket (header Upgrade + Connection)
 - Cek firewall: `sudo ufw allow 3099`
 - Cek log: `pm2 logs patuih-chat-server`
 
 ### Chat server error "Cannot reach Patuih"
+
 - Pastikan `PATUIH_URL` benar
 - Cek koneksi: `curl https://api.patuih.com/api/v1/auth/me`
 
 ### Static file 404
+
 - Nginx root path salah
 - `try_files $uri $uri/ /index.html;` harus ada untuk SPA routing
 
 ### PM2 restart setelah server reboot
+
 ```bash
 pm2 startup   # generate systemd script
 pm2 save      # simpan process list
